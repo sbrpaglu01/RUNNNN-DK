@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RUN DK RUN</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Face reveal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
@@ -145,8 +145,8 @@
 <body>
     <div id="ui-container">
         <div id="menu" class="menu-card">
-            <h1>RUNN DK RUNNN</h1>
-            <p>Arrows: Move | Space: Jump | Down: Slide</p>
+            <h1>RUNN DK RUNN</h1>
+            <p>Swipe to Move | Keyboard Arrows Work Too!</p>
             <p>Score 1000 points for a reward!</p>
             <button id="start-button">Start Game</button>
         </div>
@@ -159,7 +159,7 @@
             </div>
         </div>
         <div id="game-over" class="menu-card" style="display: none;">
-            <h1>Game Over Hero nind </h1>
+            <h1>Game Over</h1>
             <p id="final-score"></p>
             <button id="restart-button">Try Again</button>
         </div>
@@ -194,7 +194,7 @@
     // --- PLAYER STATE ---
     const playerState = {
         lane: 1, targetLane: 1, yVelocity: 0,
-        baseSpeed: 3, speed: 3, progress: 0, // EDIT: Increased base speed
+        baseSpeed: 3, speed: 3, progress: 0,
         fuel: 100, score: 0,
         isJumping: false, isSliding: false, slideTimer: 0, hasShield: false,
         isMagnetActive: false, magnetTimer: 0,
@@ -222,7 +222,7 @@
     };
 
     // --- AUDIO MANAGER ---
-    class AudioManager {
+    class AudioManager { // ... (No changes)
         constructor() {
             this.isMuted = false;
             this.sounds = {
@@ -235,17 +235,11 @@
                 revive: new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.1, release: 0.5 } }).toDestination(),
             };
             this.sounds.collect.volume.value = -6;
-            
             const reverb = new Tone.Reverb(2).toDestination();
             const delay = new Tone.FeedbackDelay("8n", 0.5).toDestination();
-            const musicSynth = new Tone.FMSynth({
-                harmonicity: 3, modulationIndex: 10,
-                envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 1 }
-            }).connect(reverb).connect(delay);
+            const musicSynth = new Tone.FMSynth({ harmonicity: 3, modulationIndex: 10, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 1 } }).connect(reverb).connect(delay);
             musicSynth.volume.value = -20;
-            const pattern = new Tone.Pattern((time, note) => {
-                musicSynth.triggerAttackRelease(note, '16n', time);
-            }, ['A2', 'C3', 'E3', 'G3', 'A3', 'C4'], "upDown").start(0);
+            const pattern = new Tone.Pattern((time, note) => { musicSynth.triggerAttackRelease(note, '16n', time); }, ['A2', 'C3', 'E3', 'G3', 'A3', 'C4'], "upDown").start(0);
             Tone.Transport.bpm.value = 120;
         }
         play(sound) {
@@ -260,10 +254,7 @@
         }
         startMusic() { if (Tone.context.state === 'running') Tone.Transport.start(); }
         stopMusic() { Tone.Transport.stop(); }
-        toggleMusic() {
-            this.isMuted = !this.isMuted;
-            Tone.Master.mute = this.isMuted;
-        }
+        toggleMusic() { this.isMuted = !this.isMuted; Tone.Master.mute = this.isMuted; }
     }
     
     // --- PARTICLE SYSTEMS ---
@@ -309,6 +300,40 @@
         createPlayer(); createChaser(); path = new Path();
         window.addEventListener('resize', onWindowResize, false);
         document.addEventListener('keydown', handleKeyDown, false);
+        // NEW: Touch controls
+        let touchStartX = 0; let touchStartY = 0;
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+        renderer.domElement.addEventListener('touchend', (e) => {
+            if (gameState !== 'playing') return;
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            const swipeThreshold = 30;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) { // Horizontal swipe
+                if (deltaX > swipeThreshold) { // Right
+                    if (playerState.targetLane < 2) playerState.targetLane++;
+                } else if (deltaX < -swipeThreshold) { // Left
+                    if (playerState.targetLane > 0) playerState.targetLane--;
+                }
+            } else { // Vertical swipe
+                if (deltaY > swipeThreshold) { // Down
+                    if (!playerState.isJumping && !playerState.isSliding) {
+                        playerState.isSliding=true;playerState.slideTimer=.6;audioManager.play('slide');
+                    }
+                } else if (deltaY < -swipeThreshold) { // Up
+                    if (!playerState.isJumping && !playerState.isSliding) {
+                        playerState.isJumping=true;playerState.yVelocity=12;audioManager.play('jump');playerState.jumpAnticipation=0.2;
+                    }
+                }
+            }
+        });
+
+
         ui.startButton.addEventListener('click', () => Tone.start().then(startGame));
         ui.restartButton.addEventListener('click', startGame);
         ui.reviveButton.addEventListener('click', revivePlayer);
@@ -399,4 +424,6 @@
     </script>
 </body>
 </html>
+"
+make the person a bit faster and for coin each coin now should provide 200 points okay ? and make the game immersive
 
