@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Face reveal</title>
+    <title>RUNN DK RUNN</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
@@ -47,6 +47,7 @@
             border: 4px solid #A98B61;
             max-width: 90%;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,255,255,0.1);
+            position: relative;
         }
         h1 {
             font-family: 'Press Start 2P', cursive;
@@ -82,45 +83,47 @@
             top: 0;
             left: 0;
             width: 100%;
-            padding: 20px;
+            padding: 10px;
             box-sizing: border-box;
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            font-size: 1.8rem;
-        }
-        .hud-left, .hud-right {
-            display: flex;
             flex-direction: column;
-            align-items: flex-start;
-            gap: 15px;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
         }
-        .hud-right { align-items: flex-end; }
-
+        .hud-top-bar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
         .hud-item {
             background: rgba(0,0,0,0.5);
-            padding: 10px 20px;
+            padding: 8px 15px;
             border-radius: 10px;
             text-shadow: 2px 2px 4px #000;
             display: flex;
             align-items: center;
         }
-        #fuel-container { width: 220px; flex-direction: column; align-items: flex-start; }
+        #fuel-container { width: 40%; max-width: 220px; flex-direction: column; align-items: center; }
         #fuel-bar-background {
-            width: 100%; height: 20px; background-color: #555;
+            width: 100%; height: 15px; background-color: #555;
             border: 2px solid #fff; border-radius: 5px; margin-top: 5px;
         }
         #fuel-bar {
             width: 100%; height: 100%; background: linear-gradient(90deg, #ff4d4d, #ffff4d, #4dff4d);
             border-radius: 3px; transition: width 0.2s linear;
         }
-        #shield-icon, #magnet-icon, #boost-icon {
-            font-size: 2.8rem;
+        .powerup-icons {
+            display: flex;
+            gap: 15px;
+            font-size: 2.5rem;
             filter: drop-shadow(2px 4px 6px black);
-            background: none;
-            padding: 0;
-            display: none;
         }
+        #shield-icon, #magnet-icon, #boost-icon { display: none; }
+        
         #video-container {
             background-color: rgba(0,0,0,0.9);
             pointer-events: all;
@@ -132,7 +135,14 @@
             border: 4px solid #A98B61;
             border-radius: 10px;
         }
-        #music-toggle-button {
+        .menu-buttons-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .icon-button {
             font-size: 2.2rem;
             background: rgba(0,0,0,0.5);
             padding: 5px 15px;
@@ -145,6 +155,10 @@
 <body>
     <div id="ui-container">
         <div id="menu" class="menu-card">
+            <div class="menu-buttons-container">
+                <div id="music-toggle-button" class="icon-button">🔊</div>
+                <div id="fullscreen-button" class="icon-button">⛶</div>
+            </div>
             <h1>RUNN DK RUNN</h1>
             <p>Swipe to Move | Keyboard Arrows Work Too!</p>
             <p>Score 1000 points for a reward!</p>
@@ -168,18 +182,16 @@
         <video id="reward-video" controlslist="nodownload"></video>
     </div>
     <div id="hud" style="display: none;">
-        <div class="hud-left">
+        <div class="hud-top-bar">
             <div id="score-container" class="hud-item">Score: <span id="score">0</span></div>
-             <div id="shield-icon">🛡️</div>
-             <div id="magnet-icon">🧲</div>
-             <div id="boost-icon">⚡</div>
-        </div>
-        <div class="hud-right">
-            <div id="fuel-container" class="hud-item">
-                <div>Fuel</div>
-                <div id="fuel-bar-background"><div id="fuel-bar"></div></div>
+            <div class="powerup-icons">
+                 <div id="shield-icon">🛡️</div>
+                 <div id="magnet-icon">🧲</div>
+                 <div id="boost-icon">⚡</div>
             </div>
-            <div id="music-toggle-button">🔊</div>
+        </div>
+        <div id="fuel-container" class="hud-item">
+            <div id="fuel-bar-background"><div id="fuel-bar"></div></div>
         </div>
     </div>
     <script>
@@ -219,6 +231,7 @@
         reviveButton: document.getElementById('revive-button'),
         endRunButton: document.getElementById('end-run-button'),
         musicToggleButton: document.getElementById('music-toggle-button'),
+        fullscreenButton: document.getElementById('fullscreen-button'),
     };
 
     // --- AUDIO MANAGER ---
@@ -300,45 +313,23 @@
         createPlayer(); createChaser(); path = new Path();
         window.addEventListener('resize', onWindowResize, false);
         document.addEventListener('keydown', handleKeyDown, false);
-        // NEW: Touch controls
+        
         let touchStartX = 0; let touchStartY = 0;
-        renderer.domElement.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
+        renderer.domElement.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; });
         renderer.domElement.addEventListener('touchend', (e) => {
             if (gameState !== 'playing') return;
-            const touchEndX = e.changedTouches[0].clientX;
-            const touchEndY = e.changedTouches[0].clientY;
-            const deltaX = touchEndX - touchStartX;
-            const deltaY = touchEndY - touchStartY;
-            const swipeThreshold = 30;
-
-            if (Math.abs(deltaX) > Math.abs(deltaY)) { // Horizontal swipe
-                if (deltaX > swipeThreshold) { // Right
-                    if (playerState.targetLane < 2) playerState.targetLane++;
-                } else if (deltaX < -swipeThreshold) { // Left
-                    if (playerState.targetLane > 0) playerState.targetLane--;
-                }
-            } else { // Vertical swipe
-                if (deltaY > swipeThreshold) { // Down
-                    if (!playerState.isJumping && !playerState.isSliding) {
-                        playerState.isSliding=true;playerState.slideTimer=.6;audioManager.play('slide');
-                    }
-                } else if (deltaY < -swipeThreshold) { // Up
-                    if (!playerState.isJumping && !playerState.isSliding) {
-                        playerState.isJumping=true;playerState.yVelocity=12;audioManager.play('jump');playerState.jumpAnticipation=0.2;
-                    }
-                }
-            }
+            const tEX = e.changedTouches[0].clientX, tEY = e.changedTouches[0].clientY;
+            const dX = tEX - touchStartX, dY = tEY - touchStartY, tS = 30;
+            if (Math.abs(dX) > Math.abs(dY)) { if (dX > tS) { if (playerState.targetLane < 2) playerState.targetLane++; } else if (dX < -tS) { if (playerState.targetLane > 0) playerState.targetLane--; } }
+            else { if (dY > tS) { if (!playerState.isJumping&&!playerState.isSliding) { playerState.isSliding=true;playerState.slideTimer=.6;audioManager.play('slide'); } } else if (dY < -tS) { if (!playerState.isJumping&&!playerState.isSliding) { playerState.isJumping=true;playerState.yVelocity=12;audioManager.play('jump');playerState.jumpAnticipation=0.2; } } }
         });
 
-
-        ui.startButton.addEventListener('click', () => Tone.start().then(startGame));
+        ui.startButton.addEventListener('click', () => { Tone.start().then(startGame); });
         ui.restartButton.addEventListener('click', startGame);
         ui.reviveButton.addEventListener('click', revivePlayer);
         ui.endRunButton.addEventListener('click', () => showGameOver());
         ui.musicToggleButton.addEventListener('click', toggleMusic);
+        ui.fullscreenButton.addEventListener('click', enterFullscreen);
     }
     
     function createSkyTexture() { const c=document.createElement("canvas");c.width=512;c.height=512;const x=c.getContext("2d");const g=x.createLinearGradient(0,0,0,512);g.addColorStop(0,"#87CEEB");g.addColorStop(0.7,"#FFFFFF");x.fillStyle=g;x.fillRect(0,0,512,512);return new THREE.CanvasTexture(c);}
@@ -419,11 +410,20 @@
         audioManager.toggleMusic();
         ui.musicToggleButton.innerText = audioManager.isMuted ? '🔇' : '🔊';
     }
+    function enterFullscreen() {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        } else if (document.documentElement.mozRequestFullScreen) { // Firefox
+            document.documentElement.mozRequestFullScreen();
+        } else if (document.documentElement.webkitRequestFullscreen) { // Chrome, Safari and Opera
+            document.documentElement.webkitRequestFullscreen();
+        } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
+            document.documentElement.msRequestFullscreen();
+        }
+    }
     function animate(){if(gameState!=='playing')return;requestAnimationFrame(animate);const d=clock.getDelta();if(d>0.1)return;path.update();updatePlayer(d);updateChaser();updateCamera(d);checkCollisions();updateHUD(d);updateCollectibles(d);particleSystem.update(d);updateMagnet(d);speedLines.update(d);godRays.update(d);composer.render();}
     init();
     </script>
 </body>
 </html>
-"
-make the person a bit faster and for coin each coin now should provide 200 points okay ? and make the game immersive
 
